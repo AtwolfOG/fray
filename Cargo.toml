@@ -1,0 +1,3 @@
+[workspace]
+resolver = "3"
+members = ["fray-client","fray-server", "protocol"]
