@@ -3,7 +3,7 @@ use clap::Parser;
 
 #[derive(Parser, Debug, Clone)]
 pub struct Config {
-  #[arg(short, long, default_value = "0.0.0.0")]
+  #[arg( default_value = "0.0.0.0")]
   pub addr: String,
   #[arg(short, long, default_value = "3000")]
   pub client_port: String,

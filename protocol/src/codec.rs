@@ -44,10 +44,14 @@ impl<R: AsyncRead + Unpin> FrameReader<R> {
       return Err(ProtocolError::PayloadTooLarge.into())
     }
 
-    let mut buffer = BytesMut::with_capacity(len as usize);
-    self.inner.read_exact(&mut buffer).await?;
+    let mut payload_buffer = vec![0u8; len as usize];
+    self.inner.read_exact(&mut payload_buffer).await?;
 
-    let frame = Frame::decode(buffer.as_ref())?;
+    let mut full_buffer = BytesMut::with_capacity(HEADER_SIZE + len as usize);
+    full_buffer.extend_from_slice(&header);
+    full_buffer.extend_from_slice(&payload_buffer);
+
+    let frame = Frame::decode(full_buffer.as_ref())?;
 
     Ok(frame)
   }

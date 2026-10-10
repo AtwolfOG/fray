@@ -24,7 +24,11 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
     match frame.kind {
       FrameType::Data => {
         let id = frame.id;
-        server_state.send_data_to_channel(id, frame.payload.to_vec()).await?;
+        let data = frame.payload.to_vec();
+        if data.is_empty() {
+          continue;
+        }
+        server_state.send_data_to_channel(id, data).await?;
       }
       _ => {
         // TODO: Handle other frame types

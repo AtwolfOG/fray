@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use protocol::codec::{FrameReader, FrameWriter};
 use protocol::frame::{Frame, FrameType};
 use tokio::io::WriteHalf;
@@ -46,7 +46,7 @@ impl Client {
   }
 
   pub async fn run(&mut self) -> Result<()> {
-    let stream = TcpStream::connect(&self.config.remote_addr).await.map_err(|_| ClientErr::ConnectError)?;
+    let stream = TcpStream::connect(&self.config.remote_addr).await.map_err(|_| ClientErr::ConnectError).with_context(|| format!("Failed to connect to server: {}", self.config.remote_addr))?;
     info!("Connected to server: {}", self.config.remote_addr);
     let (reader, writer) = split(stream);
     let writer = FrameWriter::new(writer);
@@ -54,17 +54,19 @@ impl Client {
     self.state.client_frame_writer = Some(Arc::new(Mutex::new(writer)));
     
     loop {
+      println!("trying to read frame");
       let frame = reader.read_frame().await?;
+      println!("frame read: {:?}", frame);
       match frame.kind {
         FrameType::Data => {
           let id = frame.id;
           if self.state.check_if_sender_exists(id).await {
-            let _ = self.state.send_data_to_channel(id, frame.payload.to_vec()).await;
+            self.state.send_data_to_channel(id, frame.payload.to_vec()).await.with_context(|| format!("Failed to send data to channel for id {}", id))?;
             continue;
           }
           // connect to the local server using tcp
-          let addr = format!("{}:{}", "0.0.0.0", self.config.listen_port);
-          let stream = TcpStream::connect(addr).await.map_err(|_| ClientErr::ConnectError)?;
+          let addr = format!("{}:{}", "host.docker.internal", self.config.listen_port);
+          let stream = TcpStream::connect(addr).await?;
           let (tx, mut rx) = channel(100);
           match self.state.add_sender(id, tx).await {
             Ok(_) => {
@@ -75,11 +77,12 @@ impl Client {
                   let _ = client_state.remove_sender(id).await;
                 }
               });
+              self.state.send_data_to_channel(id, frame.payload.to_vec()).await.with_context(|| format!("Failed to send data to channel for id {}", id))?;
             },
             Err(ClientErr::SenderExists(id)) => {
               info!("Sender already exists for id {}", id);
               let payload = frame.payload.to_vec();
-              let _ = self.state.send_data_to_channel(id, payload).await;
+              self.state.send_data_to_channel(id, payload).await?;
               continue;
             },
             _ => continue,

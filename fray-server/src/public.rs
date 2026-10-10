@@ -1,4 +1,4 @@
-use anyhow::{Ok, Result};
+use anyhow::{Result};
 use protocol::message::Message;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, split};
 use tokio::net::TcpStream;
@@ -18,13 +18,19 @@ pub async fn handle_public(stream: TcpStream, tx: Sender<Vec<u8>>, mut rx: Recei
   loop {
     tokio::select! {
 
-      data = reader.read(&mut buf), if read_open => {
-        let n = data?;
-        if n > 0{
+      n = reader.read(&mut buf), if read_open => {
+        let n = n?;
+        if n == 0{
           read_open = false;
         }
-        let msg = Message::Data(buf.to_vec().into());
-        server_state.write_message_to_tunnel(id, msg).await?;
+        let data = buf[..n].to_vec();
+        let msg = Message::Data(data.into());
+        // TODO: remove this
+        let Ok(tunnel_id) = server_state.get_last_tunnel_id().await else {
+          tracing::error!("Failed to get last tunnel id");
+          break;
+        };
+        server_state.write_message_to_tunnel(tunnel_id, msg).await?;
       }
       
       data = rx.recv() => {

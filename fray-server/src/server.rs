@@ -23,8 +23,8 @@ pub enum ServerErr {
   ClientAlreadyExists,
   #[error("Channel not found")]
   ChannelNotFound,
-  #[error("Channel closed")]
-  ChannelClosed,
+  // #[error("Channel closed")]
+  // ChannelClosed,
   #[error("Failed to send message")]
   FailedToSend,
   #[error("Failed to generate id")]
@@ -37,8 +37,9 @@ impl Server{
       state: ServerState {
         senders: Arc::new(Mutex::new(HashMap::new())),
         client_frame_writers: Arc::new(Mutex::new(HashMap::new())),
-        next_public_id: Arc::new(AtomicU32::new(0)),
-        next_tunnel_id: Arc::new(AtomicU32::new(0)),
+        // TODO: fix: 0 should be reserved for tunnel usage
+        next_public_id: Arc::new(AtomicU32::new(1)),
+        next_tunnel_id: Arc::new(AtomicU32::new(1)),
       },
     }
   }
@@ -168,5 +169,11 @@ impl ServerState {
       break;
     }
     Ok(id)
+  }
+
+  // this is for testing purpose
+  pub async fn get_last_tunnel_id(&self) -> Result<u32, ServerErr> {
+    let id = self.next_tunnel_id.load(Ordering::Relaxed);
+    Ok(id - 1)
   }
 }

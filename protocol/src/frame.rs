@@ -20,6 +20,7 @@ pub enum FrameType {
   Pong = 12,
 }
 
+#[derive(Debug)]
 pub struct Frame {
   pub id: u32,
   pub kind: FrameType,
@@ -84,8 +85,8 @@ impl Frame {
     if cur.remaining() != payload_len{
       return Err(ProtocolError::InvalidFrame)
     }
-    
-    Ok(Frame::new(id, kind, Bytes::copy_from_slice(&buf[HEADER_SIZE..])))
+    let payload_data = Bytes::copy_from_slice(&buf[HEADER_SIZE..]);
+    Ok(Frame::new(id, kind, payload_data))
   }
 
   pub fn encode(&self, out: &mut BytesMut) -> Result<(), ProtocolError>{

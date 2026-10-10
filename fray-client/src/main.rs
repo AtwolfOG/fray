@@ -13,5 +13,5 @@ async fn main() {
   info!("Building client");
   let mut client = Client::new(config);
   info!("Running client");
-  client.run().await.unwrap();
+  client.run().await.map_err(|e| format!("Error: {}", e)).unwrap();
 }
