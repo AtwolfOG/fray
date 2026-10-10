@@ -1,0 +1,23 @@
+FROM rust:slim-bookworm AS base
+
+FROM base AS planner
+WORKDIR /app
+RUN cargo install --locked cargo-chef
+COPY . .
+RUN cargo chef prepare --recipe-path ./recipe.json
+
+FROM base AS builder
+RUN cargo install --locked cargo-chef
+WORKDIR /app
+COPY --from=planner /app/recipe.json .
+RUN cargo chef cook --release --recipe-path ./recipe.json
+
+COPY . .
+RUN cargo build --release -p fray-server
+
+FROM base AS runtime
+
+COPY --from=builder /app/target/release/fray-server /app/fray-server
+
+CMD ["/app/fray-server"]
+

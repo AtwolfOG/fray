@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  server:    
+    build:
+      dockerfile: Dockerfile.server
+      context: .
+    environment:
+      - RUST_BACKTRACE=1
+    ports:
+      # - "3000:3000"  # Public connections
+      - "8080:3001"  # Admin connections
+    networks:
+      - fray
+
+  client:
+    build:
+      dockerfile: Dockerfile.client
+      context: .
+    # ports:
+    #   - "3002:3002"  # Local tunnel (example)
+    depends_on:
+      - server
+    environment:
+      - REMOTE_ADDR=server:3000  # Hostname of the server
+      - RUST_BACKTRACE=full
+    networks:
+      - fray
+
+networks:
+  fray:
+    driver: bridge
