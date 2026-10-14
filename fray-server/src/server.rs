@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicU32, Ordering}}};
 
+use sea_orm::DatabaseConnection;
 use thiserror::Error;
-use crate::{client::handle_client, config::Config, public::handle_public};
+use crate::{client::handle_client, cli::Config, public::handle_public, utils};
 use protocol::{codec::FrameWriter, message::Message};
 use tokio::{io::{ WriteHalf}, net::{TcpListener, TcpStream}, sync::{Mutex, mpsc::{Sender}} };
 use tracing::info;
@@ -12,6 +13,8 @@ pub struct ServerState{
   client_frame_writers: Arc<Mutex<HashMap<u32, FrameWriter<WriteHalf<TcpStream>>>>>,
   next_public_id: Arc<AtomicU32>,
   next_tunnel_id: Arc<AtomicU32>,
+  host_to_tunnel: Arc<Mutex<HashMap<String, u32>>>,
+  db: DatabaseConnection,
 }
 pub struct Server{
   pub config: Config,
@@ -31,15 +34,16 @@ pub enum ServerErr {
   FailedToGenerateId,
 }
 impl Server{
-  pub fn new(config: Config) -> Self {
+  pub fn new(config: Config, db: &DatabaseConnection) -> Self {
     Self {
       config,
       state: ServerState {
         senders: Arc::new(Mutex::new(HashMap::new())),
         client_frame_writers: Arc::new(Mutex::new(HashMap::new())),
-        // TODO: fix: 0 should be reserved for tunnel usage
         next_public_id: Arc::new(AtomicU32::new(1)),
         next_tunnel_id: Arc::new(AtomicU32::new(1)),
+        host_to_tunnel: Arc::new(Mutex::new(HashMap::new())),
+        db: db.clone(),
       },
     }
   }
@@ -53,7 +57,15 @@ impl Server{
     info!("Listening on {}", client_addr);
     info!("Listening on {}", public_addr);
 
+    // generate token for client to connect
+    let token = utils::generate_random_string(20);
+    info!("This is the token your client needs to connect to this server");
+    info!("Token: {}", token);
+    info!("To connect your client, run: `fray-client --remote-addr <server_addr> --token {} --local-port <port>`", token);
+    
+
     let state = self.state.clone();
+
     
     let client_task = tokio::spawn(async move {
       loop {
@@ -171,9 +183,14 @@ impl ServerState {
     Ok(id)
   }
 
-  // this is for testing purpose
-  pub async fn get_last_tunnel_id(&self) -> Result<u32, ServerErr> {
-    let id = self.next_tunnel_id.load(Ordering::Relaxed);
-    Ok(id - 1)
+  pub async fn set_host_to_tunnel(&self, host: String, tunnel_id: u32)  {
+    let mut map = self.host_to_tunnel.lock().await;
+    map.insert(host, tunnel_id);
   }
+
+  pub async fn get_host_to_tunnel(&self, host: &str) -> Result<u32, ServerErr> {
+    let map = self.host_to_tunnel.lock().await;
+    map.get(host).copied().ok_or(ServerErr::ChannelNotFound)
+  }
+
 }
