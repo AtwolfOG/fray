@@ -105,6 +105,8 @@ async fn close_client_with_timeout(mut rx: Receiver<()>, server_state: ServerSta
     tokio::select!{
       _ = ping_timer.as_mut() => {
         server_state.remove_client(&host).await;        
+        tracing::info!("client timed out: {}", host);
+        break;
       }
       _ = rx.recv() => {
         let new_deadline = Instant::now() + Duration::from_secs(60);
