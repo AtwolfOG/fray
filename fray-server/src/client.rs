@@ -85,7 +85,9 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
         let _ = handle_pong(tx.clone()).await;
       }
       _ => {
-        todo!()
+        tracing::error!("invalid frame type: {:?}", frame.kind);
+        let msg = Message::from_frame(frame);
+        tracing::error!("invalid message: {:?}", msg);
       }
     }
   }

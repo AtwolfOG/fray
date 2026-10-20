@@ -2,6 +2,7 @@ use bytes::{Buf, Bytes};
 
 use crate::{error::ProtocolError, frame::{Frame, FrameType}};
 
+#[derive(Debug)]
 pub enum Message {
   Auth { id: i64, token: String },
   // AuthOK { user_id: u32 },
