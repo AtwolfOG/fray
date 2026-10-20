@@ -1,8 +1,9 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicU32, Ordering}}};
 
-use sea_orm::DatabaseConnection;
+use anyhow::Result;
+use sea_orm::{DatabaseConnection, EntityTrait};
 use thiserror::Error;
-use crate::{client::handle_client, cli::Config, public::handle_public, utils};
+use crate::{cli::Config, client::handle_client, public::handle_public, utils};
 use protocol::{codec::FrameWriter, message::Message};
 use tokio::{io::{ WriteHalf}, net::{TcpListener, TcpStream}, sync::{Mutex, mpsc::{Sender}} };
 use tracing::info;
@@ -10,11 +11,10 @@ use tracing::info;
 #[derive(Debug, Clone)]
 pub struct ServerState{
   senders: Arc<Mutex<HashMap<u32, Sender<Vec<u8>>>>>,
-  client_frame_writers: Arc<Mutex<HashMap<u32, FrameWriter<WriteHalf<TcpStream>>>>>,
-  next_public_id: Arc<AtomicU32>,
-  next_tunnel_id: Arc<AtomicU32>,
-  host_to_tunnel: Arc<Mutex<HashMap<String, u32>>>,
-  db: DatabaseConnection,
+  client_frame_writers: Arc<Mutex<HashMap<String, FrameWriter<WriteHalf<TcpStream>>>>>,
+  host_to_client_id: Arc<Mutex<HashMap<String, i64>>>,
+  next_session_id: Arc<AtomicU32>,
+  pub db: DatabaseConnection,
 }
 pub struct Server{
   pub config: Config,
@@ -32,17 +32,22 @@ pub enum ServerErr {
   FailedToSend,
   #[error("Failed to generate id")]
   FailedToGenerateId,
+  #[error("Failed to get client")]
+  FailedToGetClient,
+  // #[error("Failed to save req")]
+  // FailedToSaveReq,
+  // #[error("Failed to save resp")]
+  // FailedToSaveResp,
 }
 impl Server{
-  pub fn new(config: Config, db: &DatabaseConnection) -> Self {
+  pub fn new(config: Config, db: DatabaseConnection) -> Self {
     Self {
       config,
       state: ServerState {
         senders: Arc::new(Mutex::new(HashMap::new())),
         client_frame_writers: Arc::new(Mutex::new(HashMap::new())),
-        next_public_id: Arc::new(AtomicU32::new(1)),
-        next_tunnel_id: Arc::new(AtomicU32::new(1)),
-        host_to_tunnel: Arc::new(Mutex::new(HashMap::new())),
+        host_to_client_id: Arc::new(Mutex::new(HashMap::new())),
+        next_session_id: Arc::new(AtomicU32::new(1)),
         db: db.clone(),
       },
     }
@@ -94,7 +99,7 @@ impl Server{
         match public_listener.accept().await {
           Ok((public_socket, _)) => {
             let state = state.clone();
-            let (tx, rx) = tokio::sync::mpsc::channel(1024);
+            let (tx, rx) = tokio::sync::mpsc::channel(100);
             tokio::spawn(async move {
               info!("accepted a public connection");
               match handle_public(public_socket, tx, rx, state).await {
@@ -116,43 +121,91 @@ impl Server{
 }
 
 impl ServerState {
-  pub async fn add_sender(&self, client_id: u32, sender: Sender<Vec<u8>>) -> Result<(), ServerErr>{
+  /// add public sender using session_id
+  pub async fn add_sender(&self, session_id: u32, sender: Sender<Vec<u8>>) -> Result<(), ServerErr>{
     let mut idk = self.senders.lock().await;
-    if idk.contains_key(&client_id){
+    if idk.contains_key(&session_id){
       return Err(ServerErr::ClientAlreadyExists)
     }
-    idk.insert(client_id, sender);
-    Ok(())
-  }
-  
-  pub async fn add_tunnel_frame_writer(&self, id: u32, frame_writer: FrameWriter<WriteHalf<TcpStream>>) -> Result<(), ServerErr>{
-    let mut idk = self.client_frame_writers.lock().await;
-    if idk.contains_key(&id){
-      return Err(ServerErr::ClientAlreadyExists)
-    }
-    idk.insert(id, frame_writer);
+    idk.insert(session_id, sender);
     Ok(())
   }
 
-  pub async fn send_data_to_channel(&self, id: u32, msg: Vec<u8>) -> Result<(), ServerErr>{
+  /// send data to channel using session_id
+  pub async fn send_data_to_channel(&self, session_id: u32, msg: Vec<u8>) -> Result<(), ServerErr>{
     let tx = self.senders.lock().await;
-    match tx.get(&id) {
+    match tx.get(&session_id) {
       Some(tx) => tx.send(msg).await.map_err(|_| ServerErr::FailedToSend),
       None => Err(ServerErr::ChannelNotFound),
     }
   }
 
-  pub async fn write_message_to_tunnel(&self, id: u32, msg: Message) -> Result<(), ServerErr>{
+  /// remove sender using session_id
+  pub async fn remove_sender(&self, session_id: u32) -> Result<(), ServerErr>{
+    let mut idk = self.senders.lock().await;
+    idk.remove(&session_id);
+    Ok(())
+  }
+  
+  /// add tunnel frame writer using host
+  async fn add_tunnel_frame_writer(&self, host: String, frame_writer: FrameWriter<WriteHalf<TcpStream>>) {
+    let mut idk = self.client_frame_writers.lock().await;
+    // todo: handle reconnection better instead of just overriding
+    // override if the client reconnects
+    idk.insert(host, frame_writer);
+  }
+  
+  /// remove tunnel frame writer using host
+  async fn remove_tunnel_frame_writer(&self, host: &String){
+    let mut idk = self.client_frame_writers.lock().await;
+    idk.remove(host);
+  }
+
+  /// write message to tunnel using host and request id
+  pub async fn write_message_to_tunnel(&self, host: &String, req_id: u32, msg: Message) -> Result<(), ServerErr>{
     let mut fw = self.client_frame_writers.lock().await;
-    match fw.get_mut(&id) {
-      Some(fw) => fw.write_frame(&msg.into_frame(id)).await.map_err(|_| ServerErr::FailedToSend),
+    match fw.get_mut(host) {
+      Some(fw) => fw.write_frame(&msg.into_frame(req_id)).await.map_err(|_| ServerErr::FailedToSend),
       None => Err(ServerErr::ChannelNotFound),
     }
   }
 
+  /// get client id from host
+  pub async fn get_client_id_from_host(&self, host: String) -> Result<i64, ServerErr> {
+    let idk = self.host_to_client_id.lock().await;
+    match idk.get(&host) {
+      Some(id) => Ok(*id),
+      None => Err(ServerErr::ChannelNotFound),
+    }
+  }
 
-  pub async fn get_next_public_id(&self) -> Result<u32, ServerErr> {
-    let id = self.next_public_id.fetch_add(1, Ordering::Relaxed);
+  /// remove host from client id map
+  async fn remove_host_from_client_id_map(&self, host: &String) {
+    let mut idk = self.host_to_client_id.lock().await;
+    idk.remove(host);
+  }
+
+  /// add host to client id map
+  async fn add_host_to_client_id(&self, host: String, client_id: i64) {
+    let mut idk = self.host_to_client_id.lock().await;
+    idk.insert(host, client_id);
+  }
+
+  /// this remove stream writers from tunnel_writers, and remove host from host_to_client_id map
+  pub async fn remove_client(&self, host: &String) {
+    self.remove_tunnel_frame_writer(host).await;
+    self.remove_host_from_client_id_map(host).await;
+  }
+
+  /// this add tunnel frame writer to tunnel_writers, and add host to host_to_client_id map
+  pub async fn add_client(&self, host: String, frame_writer: FrameWriter<WriteHalf<TcpStream>>, client_id: i64) {
+    self.add_tunnel_frame_writer(host.clone(), frame_writer).await;
+    self.add_host_to_client_id(host, client_id).await;
+  }
+
+  /// get next public id
+  pub async fn get_next_session_id(&self) -> Result<u32, ServerErr> {
+    let id = self.next_session_id.fetch_add(1, Ordering::Relaxed);
     let mut tries = 0;
     loop {
       if tries > 10 {
@@ -167,30 +220,19 @@ impl ServerState {
     Ok(id)
   }
 
-  pub async fn get_next_tunnel_id(&self) -> Result<u32, ServerErr> {
-    let id = self.next_tunnel_id.fetch_add(1, Ordering::Relaxed);
-    let mut tries = 0;
-    loop {
-      if tries > 10 {
-        return Err(ServerErr::FailedToGenerateId);
+  /// auth client using id and client secret
+  pub async fn auth_client(&self, id: i64, client_secret: &str) -> Result<crate::entity::client::Model, ServerErr> {
+    let client = crate::entity::client::Entity::find_by_id(id).one(&self.db).await.map_err(|_| ServerErr::FailedToGenerateId)?;
+    match client {
+      Some(client) => {
+        if client.client_secret == client_secret {
+          Ok(client)
+        } else {
+          Err(ServerErr::FailedToGetClient)
+        }
       }
-      if self.client_frame_writers.lock().await.contains_key(&id){
-        tries += 1;
-        continue;
-      }
-      break;
+      None => Err(ServerErr::FailedToGetClient),
     }
-    Ok(id)
-  }
-
-  pub async fn set_host_to_tunnel(&self, host: String, tunnel_id: u32)  {
-    let mut map = self.host_to_tunnel.lock().await;
-    map.insert(host, tunnel_id);
-  }
-
-  pub async fn get_host_to_tunnel(&self, host: &str) -> Result<u32, ServerErr> {
-    let map = self.host_to_tunnel.lock().await;
-    map.get(host).copied().ok_or(ServerErr::ChannelNotFound)
   }
 
 }

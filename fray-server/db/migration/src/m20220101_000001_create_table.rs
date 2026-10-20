@@ -15,7 +15,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_auto("id"))
                     .col(string("client_secret"))
-                    .col(string("host"))
+                    .col(string_uniq("host"))
                     .col(string("name"))
                     .to_owned(),
             )

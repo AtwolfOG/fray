@@ -9,10 +9,13 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     pub client_secret: String,
+    #[sea_orm(unique)]
     pub host: String,
     pub name: String,
+    pub created_at: DateTimeWithTimeZone,
+    pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(has_many)]
-    pub requests: HasMany<super::request::Entity>,
+    pub api_logs: HasMany<super::api_log::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

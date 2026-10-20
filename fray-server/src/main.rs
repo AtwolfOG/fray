@@ -18,7 +18,7 @@ async fn main() {
     info!("connected to database");
     match cli.cmd{
       cli::Commands::Run(config) => {
-        let server = server::Server::new(config, &db);
+        let server = server::Server::new(config, db);
         info!("starting server...");
         let _ = server.run().await;
         info!("server exited");
