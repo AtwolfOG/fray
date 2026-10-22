@@ -10,7 +10,7 @@ use tokio::{io::split};
 use tokio::sync::mpsc::{channel, Sender};
 use tracing::{error, info};
 
-use crate::config::Config;
+use crate::cli::Config;
 use crate::request::handle_request;
 
 #[derive(Debug, Clone)]

@@ -1,10 +1,10 @@
-mod config;
+mod cli;
 mod client;
 mod request;
 mod db;
 
 
-use config::Config;
+use cli::Config;
 use client::Client;
 use tracing::info;
 
