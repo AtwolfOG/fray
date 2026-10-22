@@ -14,7 +14,7 @@ async fn main() {
     let cli = cli::Cli::parse().unwrap();
     info!("building server...");
     info!("connecting to database");
-    let db = db::connect().await.expect("Failed to connect to database");
+    let db = db::setup_database().await.expect("Failed to connect to database");
     info!("connected to database");
     match cli.cmd{
       cli::Commands::Run(config) => {

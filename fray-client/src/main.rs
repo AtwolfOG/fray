@@ -1,6 +1,8 @@
 mod config;
 mod client;
 mod request;
+mod db;
+
 
 use config::Config;
 use client::Client;

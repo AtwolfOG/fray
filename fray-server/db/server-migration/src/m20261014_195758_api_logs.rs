@@ -21,7 +21,7 @@ impl MigrationTrait for Migration {
             .col(integer("client_id"))
             .col(binary("request_payload"))
             .col(binary("response_payload"))
-            .col(enumeration("status", "status", ["success", "failure", "processing"]).default("processing"))
+            .col(enumeration("status", "status", ["success", "failed", "processing"]).default("processing"))
             .col(timestamp_with_time_zone_default_now("created_at"))
             .col(timestamp_with_time_zone_default_now("updated_at"))
             .foreign_key(

@@ -490,6 +490,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
+name = "client-migration"
+version = "0.1.0"
+dependencies = [
+ "sea-orm-migration",
+ "tokio",
+]
+
+[[package]]
 name = "cmov"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -812,7 +820,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "client-migration",
  "protocol",
+ "sea-orm",
  "thiserror",
  "tokio",
  "tracing",
@@ -825,10 +835,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "migration",
  "protocol",
  "rand 0.10.3",
  "sea-orm",
+ "server-migration",
  "thiserror",
  "tokio",
  "tracing",
@@ -1373,14 +1383,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "migration"
-version = "0.1.0"
-dependencies = [
- "sea-orm-migration",
- "tokio",
 ]
 
 [[package]]
@@ -2086,6 +2088,14 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "server-migration"
+version = "0.1.0"
+dependencies = [
+ "sea-orm-migration",
+ "tokio",
 ]
 
 [[package]]
