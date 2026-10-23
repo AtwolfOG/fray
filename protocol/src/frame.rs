@@ -14,10 +14,11 @@ pub enum FrameType {
   TunnelErr = 6,
   OpenStream = 7,
   StreamOpened = 8,
-  StreamClose = 9,
-  Data = 10,
-  Ping = 11,
-  Pong = 12,
+  CloseStream = 9,
+  StreamClosed = 10,
+  Data = 11,
+  Ping = 12,
+  Pong = 13,
 }
 
 #[derive(Debug)]
@@ -39,10 +40,11 @@ impl TryFrom<u8> for FrameType {
       6 => Ok(FrameType::TunnelErr),
       7 => Ok(FrameType::OpenStream),
       8 => Ok(FrameType::StreamOpened),
-      9 => Ok(FrameType::StreamClose),
-      10 => Ok(FrameType::Data),
-      11 => Ok(FrameType::Ping),
-      12 => Ok(FrameType::Pong),
+      9 => Ok(FrameType::CloseStream),
+      10 => Ok(FrameType::StreamClosed),
+      11 => Ok(FrameType::Data),
+      12 => Ok(FrameType::Ping),
+      13 => Ok(FrameType::Pong),
       _ => Err(ProtocolError::InvalidFrameType),
     }
   }

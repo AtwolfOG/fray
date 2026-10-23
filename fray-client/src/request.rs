@@ -3,7 +3,7 @@ use tokio::{io::{AsyncWriteExt, AsyncReadExt, split}, net::TcpStream, select, sy
 use anyhow::{Context, Result};
 use crate::client::ClientState;
 
-pub async fn handle_request(stream: TcpStream, rx: &mut Receiver<Vec<u8>>, id: u32, client_state: ClientState) -> Result<()>{ 
+pub async fn handle_request(stream: TcpStream, rx: &mut Receiver<Vec<u8>>, id: u32, client_state: ClientState) -> Result<()>{
   let ( mut reader, mut writer) = split(stream);
   let mut buffer = vec![0; 1024];
 
@@ -12,7 +12,7 @@ pub async fn handle_request(stream: TcpStream, rx: &mut Receiver<Vec<u8>>, id: u
     select! {
       rx_data = rx.recv() => {
         let data = rx_data.with_context(|| "nothing was sent to the channel")?;
-        println!("sending data to public: {:?}", String::from_utf8_lossy(&data));
+        
         match writer.write_all(&data).await {
           Ok(_) => {},
           Err(_) => break,
@@ -35,6 +35,6 @@ pub async fn handle_request(stream: TcpStream, rx: &mut Receiver<Vec<u8>>, id: u
     }
   }
   // send signal to close stream
-  client_state.send_frame_to_writer(Message::StreamClose { stream_id: id }.into_frame(id)).await?;
+  client_state.send_frame_to_writer(Message::CloseStream { stream_id: id }.into_frame(id)).await?;
   Ok(())
 }

@@ -73,12 +73,15 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
       FrameType::TunnelErr => {
         todo!()
       }
-      FrameType::StreamClose => {
+      FrameType::CloseStream => {
         let message = Message::from_frame(frame)?;
-        let Message::StreamClose { stream_id: session_id } = message else {
+        let Message::CloseStream { stream_id: session_id } = message else {
           continue;
         };
         server_state.remove_sender(session_id).await?;
+
+        // write stream closed to client
+        let _ = server_state.write_message_to_tunnel(&host, session_id, Message::StreamClosed { stream_id: session_id }).await;
       }
       FrameType::Pong => {
         // handle pong

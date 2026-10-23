@@ -18,9 +18,10 @@ pub enum Commands {
 
 #[derive(Parser, Debug, Clone)]
 pub struct CreateClient {
-  #[arg(short, long)]
+  /// Name that can be used to identify the client
   pub name: String,
-  #[arg(short, long)]
+  /// Optional Hostname, that will be used as the subdomain to access your tunnel
+  #[arg(short = 'H', long)]
   pub hostname: Option<String>,
 }
 
@@ -38,7 +39,6 @@ pub struct Config {
 
 #[derive(Parser, Debug, Clone)]
 pub struct DeleteClient {
-  #[arg(short, long)]
   pub id: i64,
 }
 
