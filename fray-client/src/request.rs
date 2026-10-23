@@ -34,5 +34,7 @@ pub async fn handle_request(stream: TcpStream, rx: &mut Receiver<Vec<u8>>, id: u
       }
     }
   }
+  // send signal to close stream
+  client_state.send_frame_to_writer(Message::StreamClose { stream_id: id }.into_frame(id)).await?;
   Ok(())
 }

@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::{Context, Result};
 use protocol::codec::{FrameReader, FrameWriter};
 use protocol::frame::{Frame, FrameType};
+use protocol::message::Message;
 use tokio::io::WriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -48,20 +49,57 @@ impl Client {
   pub async fn run(&mut self) -> Result<()> {
     let stream = TcpStream::connect(&self.config.remote_addr).await.map_err(|_| ClientErr::ConnectError).with_context(|| format!("Failed to connect to server: {}", self.config.remote_addr))?;
     info!("Connected to server: {}", self.config.remote_addr);
+    // split stream
     let (reader, writer) = split(stream);
     let writer = FrameWriter::new(writer);
     let mut reader = FrameReader::new(reader);
     self.state.client_frame_writer = Some(Arc::new(Mutex::new(writer)));
+
+    // send auth
+    let auth_frame = Message::Auth { id: self.config.id, token: self.config.key.clone() }.into_frame(0);
+    self.state.send_frame_to_writer(auth_frame).await?;
+
+    // handle auth response
+    let auth_res_frame = reader.read_frame().await.with_context(|| "Failed to read auth response")?;
+    match Message::from_frame(auth_res_frame) {
+      Ok(Message::AuthOK) => {
+        info!("Authentication successful");
+      }
+      Ok(Message::AuthErr { reason }) => {
+        return Err(anyhow::anyhow!("Authentication failed: {}", reason));
+      }
+      _ => {
+        return Err(anyhow::anyhow!("Invalid auth response"));
+      }
+    };
+
+    // register tunnel
+    let register_tunnel_frame = Message::RegisterTunnel.into_frame(0);
+    self.state.send_frame_to_writer(register_tunnel_frame).await?;
+
+    // handle tunnel registered response
+    let tunnel_registered_frame = reader.read_frame().await.with_context(|| "Failed to read tunnel registered response")?;
+    match Message::from_frame(tunnel_registered_frame) {
+      Ok(Message::TunnelRegistered) => {
+        info!("Tunnel registered successfully");
+      }
+      Ok(Message::TunnelErr { reason }) => {
+        return Err(anyhow::anyhow!("Tunnel registration failed: {}", reason));
+      }
+      _ => {
+        return Err(anyhow::anyhow!("Invalid tunnel registered response"));
+      }
+    };
     
     loop {
-      println!("trying to read frame");
+      // println!("trying to read frame");
       let frame = reader.read_frame().await?;
-      println!("frame read: {:?}", frame);
+      // println!("frame read: {:?}", frame);
       match frame.kind {
-        FrameType::Data => {
+        FrameType::OpenStream => {
           let id = frame.id;
+          // if sender already exists, skip this frame
           if self.state.check_if_sender_exists(id).await {
-            self.state.send_data_to_channel(id, frame.payload.to_vec()).await.with_context(|| format!("Failed to send data to channel for id {}", id))?;
             continue;
           }
           // connect to the local server using tcp
@@ -71,26 +109,37 @@ impl Client {
           match self.state.add_sender(id, tx).await {
             Ok(_) => {
               let client_state = self.state.clone();
+              // spawn a new thread to handle the request
               tokio::spawn(async move {
                 if let Err(e) = handle_request(stream, &mut rx, id, client_state.clone()).await {
                   error!("Failed to handle request for id {}: {}", id, e);
-                  let _ = client_state.remove_sender(id).await;
                 }
+                // remove sender from hashmap after request is done
+                if let Err(e) = client_state.remove_sender(id).await {
+                  error!("Failed to remove sender for id {}: {}", id, e);
+                };
               });
-              self.state.send_data_to_channel(id, frame.payload.to_vec()).await.with_context(|| format!("Failed to send data to channel for id {}", id))?;
             },
-            Err(ClientErr::SenderExists(id)) => {
-              info!("Sender already exists for id {}", id);
-              let payload = frame.payload.to_vec();
-              self.state.send_data_to_channel(id, payload).await?;
-              continue;
-            },
-            _ => continue,
+            // todo: find better to handle this error
+            Err(_) => continue,
           }
+        }
+        FrameType::Data => {
+          let id = frame.id;
+          if self.state.check_if_sender_exists(id).await {
+            let Ok(_) = self.state.send_data_to_channel(id, frame.payload.to_vec()).await else {
+              error!("Failed to send data to channel for id: {}", id);
+              continue;
+            };
+          };
           
         }
-        FrameType::Auth => {},
-        _ => {}
+        FrameType::Ping => {
+          self.state.send_frame_to_writer(Message::Pong.into_frame(0)).await?;
+        }
+        _ => {
+          error!("Unknown frame type: {:?}", frame.kind);
+        }
       }
     }
   }
