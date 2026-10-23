@@ -8,10 +8,13 @@ services:
     environment:
       - RUST_BACKTRACE=1
     ports:
-      # - "3000:3000"  # Public connections
-      - "8080:3001"  # Admin connections
+      # - "3000:3001"  # Public connections
+      - "8080:3000"  # Client connections
+      # - "3002:3002"  # Admin connections
     networks:
       - fray
+    volumes:
+      - ./fray-server.db:/app/fray-server.db
 
   client:
     build:

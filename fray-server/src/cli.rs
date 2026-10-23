@@ -32,6 +32,8 @@ pub struct Config {
   #[arg(short, long, default_value = "3000")]
   pub client_port: String,
   #[arg(short, long, default_value = "3001")]
+  pub public_port: String,
+  #[arg(short, long, default_value = "3002")]
   pub admin_port: String,
 }
 

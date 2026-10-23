@@ -55,7 +55,7 @@ impl Server{
 
   pub async fn run(&self){
     let client_addr = format!("{}:{}", self.config.addr, self.config.client_port);
-    let public_addr = format!("{}:{}", self.config.addr, self.config.admin_port);
+    let public_addr = format!("{}:{}", self.config.addr, self.config.public_port);
 
     let client_listener = TcpListener::bind(client_addr.clone()).await.expect("failed to bind");
     let public_listener = TcpListener::bind(public_addr.clone()).await.expect("failed to bind");
