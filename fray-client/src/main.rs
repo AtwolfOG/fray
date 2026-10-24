@@ -9,8 +9,13 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
-  tracing_subscriber::fmt::init();
+  // setting up logs
+  tracing_subscriber::fmt().init();
+  // parsing the cli arguments
   let cli = cli::Cli::parse().unwrap();
+  info!("Parsed CLI: {:?}", cli);
+  println!("Parsed CLI: {:?}", cli);
+  // matching the cli arguments
   match cli.cmd {
     cli::Commands::Run(config) => {
       info!("Building client");

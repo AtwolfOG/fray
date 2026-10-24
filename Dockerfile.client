@@ -19,5 +19,5 @@ FROM base AS runtime
 
 COPY --from=builder /app/target/release/fray-client /app/fray-client
 
-CMD ["/app/fray-client"]
+CMD ["/app/fray-client", "run", "-k", "wxYy6TTAkJmTg4bkbyyzEizqaOAN9D2q", "--id", "2"]
 

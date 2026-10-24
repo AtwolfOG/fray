@@ -21,7 +21,7 @@ pub enum Commands {
 #[derive(Parser, Debug, Clone)]
 pub struct Config {
   #[arg(short, long, default_value = "3000")]
-  pub listen_port: String,
+  pub local_port: String,
   #[arg(short, long, default_value = "3001")]
   pub admin_port: String,
   #[arg(short, long, env, default_value_t = get_remote_url_from_config())]

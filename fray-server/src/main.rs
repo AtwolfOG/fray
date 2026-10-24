@@ -10,9 +10,12 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
+  // setting up logging
     tracing_subscriber::fmt().init();
+    // parsing the cli arguments
     let cli = cli::Cli::parse().unwrap();
     info!("building server...");
+    // connecting to database
     info!("connecting to database");
     let db = db::setup_database().await.expect("Failed to connect to database");
     info!("connected to database");

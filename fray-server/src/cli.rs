@@ -29,11 +29,11 @@ pub struct CreateClient {
 pub struct Config {
   #[arg( default_value = "0.0.0.0")]
   pub addr: String,
-  #[arg(short, long, default_value = "3000")]
+  #[arg(short, long, default_value = "8000")]
   pub client_port: String,
-  #[arg(short, long, default_value = "3001")]
+  #[arg(short, long, default_value = "8001")]
   pub public_port: String,
-  #[arg(short, long, default_value = "3002")]
+  #[arg(short, long, default_value = "8002")]
   pub admin_port: String,
 }
 

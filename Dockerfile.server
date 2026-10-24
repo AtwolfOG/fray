@@ -19,5 +19,5 @@ FROM base AS runtime
 
 COPY --from=builder /app/target/release/fray-server /app/fray-server
 
-CMD ["/app/fray-server"]
+CMD ["/app/fray-server", "run"]
 

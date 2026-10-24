@@ -4,6 +4,7 @@ use protocol::{frame::FrameType, message::Message};
 use tokio::{net::TcpStream, sync::mpsc::{Receiver, Sender}, time::Instant};
 use anyhow::{Context, Result, bail};
 use tokio::io::{BufReader, split};
+use tracing::info;
 use crate::{server::ServerState};
 use protocol::codec::{FrameReader, FrameWriter};
 
@@ -18,6 +19,7 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
   let mut frame_writer = FrameWriter::new(writer);
 
   // authenticate client
+  info!("authenticating client");
   let auth_frame = frame_reader.read_frame().await?;
   let Message::Auth {id: client_id, token} = Message::from_frame(auth_frame)? else {
     // auth failed

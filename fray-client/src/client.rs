@@ -56,10 +56,12 @@ impl Client {
     self.state.client_frame_writer = Some(Arc::new(Mutex::new(writer)));
 
     // send auth
+    info!("sending auth request");
     let auth_frame = Message::Auth { id: self.config.id, token: self.config.key.clone() }.into_frame(0);
     self.state.send_frame_to_writer(auth_frame).await?;
 
     // handle auth response
+    info!("waiting for auth response");
     let auth_res_frame = reader.read_frame().await.with_context(|| "Failed to read auth response")?;
     match Message::from_frame(auth_res_frame) {
       Ok(Message::AuthOK) => {
@@ -74,10 +76,12 @@ impl Client {
     };
 
     // register tunnel
+    info!("registering tunnel");
     let register_tunnel_frame = Message::RegisterTunnel.into_frame(0);
     self.state.send_frame_to_writer(register_tunnel_frame).await?;
 
     // handle tunnel registered response
+    info!("waiting for tunnel registered response");
     let tunnel_registered_frame = reader.read_frame().await.with_context(|| "Failed to read tunnel registered response")?;
     match Message::from_frame(tunnel_registered_frame) {
       Ok(Message::TunnelRegistered) => {
@@ -103,7 +107,7 @@ impl Client {
             continue;
           }
           // connect to the local server using tcp
-          let addr = format!("{}:{}", "host.docker.internal", self.config.listen_port);
+          let addr = format!("{}:{}", "host.docker.internal", self.config.local_port);
           let stream = TcpStream::connect(addr).await?;
           let (tx, mut rx) = channel(100);
           match self.state.add_sender(id, tx).await {
