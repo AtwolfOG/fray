@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{Arc, atomic::{AtomicU32, Ordering}}};
 use anyhow::Result;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use thiserror::Error;
-use crate::{cli::Config, client::handle_client, public::handle_public, utils};
+use crate::{cli::Config, client::handle_client, public::handle_public};
 use protocol::{codec::FrameWriter, message::Message};
 use tokio::{io::{ WriteHalf}, net::{TcpListener, TcpStream}, sync::{Mutex, mpsc::{Sender}} };
 use tracing::info;
@@ -61,13 +61,6 @@ impl Server{
     let public_listener = TcpListener::bind(public_addr.clone()).await.expect("failed to bind");
     info!("Listening on {}", client_addr);
     info!("Listening on {}", public_addr);
-
-    // generate token for client to connect
-    let token = utils::generate_random_string(20);
-    info!("This is the token your client needs to connect to this server");
-    info!("Token: {}", token);
-    info!("To connect your client, run: `fray-client --remote-addr <server_addr> --token {} --local-port <port>`", token);
-    
 
     let state = self.state.clone();
 

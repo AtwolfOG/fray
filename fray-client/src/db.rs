@@ -5,7 +5,7 @@ use client_migration::MigratorTrait;
 
 /// Connects to the database
 async fn connect() -> Result<DatabaseConnection, DbErr> {
-  let mut opt = ConnectOptions::new("sqlite://fray-server.db?mode=rwc");
+  let mut opt = ConnectOptions::new("sqlite://fray-client.db?mode=rwc");
   opt.max_connections(100)
     .min_connections(5)
     .connect_timeout(Duration::from_secs(8))

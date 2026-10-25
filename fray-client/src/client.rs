@@ -107,13 +107,15 @@ impl Client {
             continue;
           }
           // connect to the local server using tcp
-          let addr = format!("{}:{}", "host.docker.internal", self.config.local_port);
+          // let addr = format!("{}:{}", "host.docker.internal", self.config.local_port);
+          let addr = format!("{}:{}", "localhost", self.config.local_port);
+          // TODO: handle error when local server is not reachable
           let stream = TcpStream::connect(addr).await?;
           let (tx, mut rx) = channel(100);
           match self.state.add_sender(id, tx).await {
             Ok(_) => {
               let client_state = self.state.clone();
-              // spawn a new thread to handle the request
+              // spawn a new task to handle the request
               tokio::spawn(async move {
                 if let Err(e) = handle_request(stream, &mut rx, id, client_state.clone()).await {
                   error!("Failed to handle request for id {}: {}", id, e);
@@ -124,7 +126,7 @@ impl Client {
                 };
               });
             },
-            // todo: find better to handle this error
+            // TODO: handle error
             Err(_) => continue,
           }
         }

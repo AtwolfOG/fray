@@ -35,6 +35,10 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
     bail!("Invalid client credentials")
   };
 
+  info!("authenticated client: {}, id: {}", client.name, client.id);
+  let auth_ok_frame = Message::AuthOK.into_frame(0);
+  frame_writer.write_frame(&auth_ok_frame).await.with_context(|| format!("Unable to write auth ok frame for client id: {client_id}"))?;
+
   // get host
   let host = client.host;
 
@@ -110,7 +114,7 @@ async fn close_client_with_timeout(mut rx: Receiver<()>, server_state: ServerSta
   
   loop {
     tokio::select!{
-      _ = ping_timer.as_mut() => {
+      () = &mut ping_timer => {
         server_state.remove_client(&host).await;        
         tracing::info!("client timed out: {}", host);
         break;
@@ -125,7 +129,7 @@ async fn close_client_with_timeout(mut rx: Receiver<()>, server_state: ServerSta
 }
 
 async fn ping_client(server_state: ServerState, host: String) -> Result<()> { 
-  let mut interval = tokio::time::interval(Duration::from_secs(60));
+  let mut interval = tokio::time::interval(Duration::from_secs(45));
   loop {
     interval.tick().await;
     let ping_msg = Message::Ping;
