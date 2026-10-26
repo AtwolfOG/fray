@@ -43,13 +43,7 @@ impl Server{
   pub fn new(config: Config, db: DatabaseConnection) -> Self {
     Self {
       config,
-      state: ServerState {
-        senders: Arc::new(Mutex::new(HashMap::new())),
-        client_frame_writers: Arc::new(Mutex::new(HashMap::new())),
-        host_to_client_id: Arc::new(Mutex::new(HashMap::new())),
-        next_session_id: Arc::new(AtomicU32::new(1)),
-        db: db.clone(),
-      },
+      state: ServerState::build(db),
     }
   }
 
@@ -114,6 +108,16 @@ impl Server{
 }
 
 impl ServerState {
+
+  pub fn build(db: DatabaseConnection) -> Self{
+   Self {
+      senders: Arc::new(Mutex::new(HashMap::new())),
+      client_frame_writers: Arc::new(Mutex::new(HashMap::new())),
+      host_to_client_id: Arc::new(Mutex::new(HashMap::new())),
+      next_session_id: Arc::new(AtomicU32::new(1)),
+      db,
+    }
+  }
   /// add public sender using session_id
   pub async fn add_sender(&self, session_id: u32, sender: Sender<Vec<u8>>) -> Result<(), ServerErr>{
     let mut idk = self.senders.lock().await;

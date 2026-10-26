@@ -48,6 +48,7 @@ pub async fn handle_public(stream: TcpStream, tx: Sender<Vec<u8>>, mut rx: Recei
 
       n = reader.read(&mut buf), if read_open => {
         let n = n?;
+        println!("a bytes was read from the remote: {}", String::from_utf8_lossy(&buf[..n]));
         if n == 0{
           read_open = false;
           continue;
@@ -79,12 +80,15 @@ pub async fn handle_public(stream: TcpStream, tx: Sender<Vec<u8>>, mut rx: Recei
     "success".to_owned()
   };
 
+  let now = chrono::Utc::now().into();
   let api_log = entity::api_log::ActiveModel {
     client_id: Set(client_id),
     request_payload: Set(request_payload),
     response_payload: Set(response_payload),
     duration_ms: Set(duration),
     status: Set(status),
+    created_at: Set(now),
+    updated_at: Set(now),
     ..Default::default()
   };
   // log db err
@@ -94,3 +98,4 @@ pub async fn handle_public(stream: TcpStream, tx: Sender<Vec<u8>>, mut rx: Recei
 
   Ok(())
 }
+

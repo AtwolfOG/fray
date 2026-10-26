@@ -13,10 +13,10 @@ pub async fn get_headers<T: AsyncRead + Unpin>(reader: &mut BufReader<T>) -> Res
     }
     buffer.extend_from_slice(available);
     let amt = available.len();
-    if available.windows(4).any(|w| w == b"\r\n\r\n"){
+    reader.consume(amt);
+    if buffer.windows(4).any(|w| w == b"\r\n\r\n"){
       break;
     }
-    reader.consume(amt);
   }
   let host = extract_headers(&buffer);
   Ok((host, buffer))

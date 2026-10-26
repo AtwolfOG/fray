@@ -1,11 +1,12 @@
 use std::time::Duration;
 
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
-use server_migration::MigratorTrait;
+
+use crate::entity::{api_log, client};
 
 /// Connects to the database
-async fn connect() -> Result<DatabaseConnection, DbErr> {
-  let mut opt = ConnectOptions::new("sqlite://fray-server.db?mode=rwc");
+async fn connect(url: &str) -> Result<DatabaseConnection, DbErr> {
+  let mut opt = ConnectOptions::new(url);
   opt.max_connections(100)
     .min_connections(5)
     .connect_timeout(Duration::from_secs(8))
@@ -18,12 +19,17 @@ async fn connect() -> Result<DatabaseConnection, DbErr> {
 }
 
 /// Runs the database migrations
-async fn run_migration(db: &DatabaseConnection, steps: Option<u32>) -> Result<(), DbErr> {
-  server_migration::Migrator::up(db, steps).await
+async fn run_migration(db: &DatabaseConnection) -> Result<(), DbErr> {
+  db.get_schema_builder()
+    .register(client::Entity)
+    .register(api_log::Entity)
+    .sync(db)
+    .await
 }
 
-pub async fn setup_database() -> Result<DatabaseConnection, DbErr> {
-  let db = connect().await?;
-  run_migration(&db, None).await?;
+pub async fn setup_database(db_url: Option<&str>) -> Result<DatabaseConnection, DbErr> {
+  let url = db_url.unwrap_or("sqlite://fray-server.db?mode=rwc");
+  let db = connect(url).await?;
+  run_migration(&db).await?;
   Ok(db)
 }

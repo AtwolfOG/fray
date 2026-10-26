@@ -5,8 +5,11 @@ mod public;
 mod utils;
 mod db;
 mod entity;
+mod test;
+
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, EntityTrait, ModelTrait};
 use tracing::info;
+
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +20,7 @@ async fn main() {
     info!("building server...");
     // connecting to database
     info!("connecting to database");
-    let db = db::setup_database().await.expect("Failed to connect to database");
+    let db = db::setup_database(None).await.expect("Failed to connect to database");
     info!("connected to database");
     match cli.cmd{
       cli::Commands::Run(config) => {

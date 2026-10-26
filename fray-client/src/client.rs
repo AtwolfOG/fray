@@ -132,6 +132,7 @@ impl Client {
         }
         FrameType::Data => {
           let id = frame.id;
+          println!("data frame read with id: {}", id);
           if self.state.check_if_sender_exists(id).await {
             let Ok(_) = self.state.send_data_to_channel(id, frame.payload.to_vec()).await else {
               error!("Failed to send data to channel for id: {}", id);
