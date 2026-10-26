@@ -862,6 +862,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "dotenvy",
  "protocol",
  "rand 0.10.3",
  "sea-orm",

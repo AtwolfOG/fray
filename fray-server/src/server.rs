@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicU32, Ordering}}};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sea_orm::{DatabaseConnection, EntityTrait};
 use thiserror::Error;
-use crate::{cli::Config, client::handle_client, public::handle_public};
+use crate::{cli::RunArgs, client::handle_client, public::handle_public};
 use protocol::{codec::FrameWriter, message::Message};
 use tokio::{io::{ WriteHalf}, net::{TcpListener, TcpStream}, sync::{Mutex, mpsc::{Sender}} };
 use tracing::info;
@@ -17,7 +17,7 @@ pub struct ServerState{
   pub db: DatabaseConnection,
 }
 pub struct Server{
-  pub config: Config,
+  pub config: RunArgs,
   state: ServerState,
 }
 #[derive(Debug, Error)]
@@ -40,19 +40,19 @@ pub enum ServerErr {
   // FailedToSaveResp,
 }
 impl Server{
-  pub fn new(config: Config, db: DatabaseConnection) -> Self {
+  pub fn new(config: RunArgs, db: DatabaseConnection) -> Self {
     Self {
       config,
       state: ServerState::build(db),
     }
   }
 
-  pub async fn run(&self){
+  pub async fn run(&self) -> Result<()>{
     let client_addr = format!("{}:{}", self.config.addr, self.config.client_port);
     let public_addr = format!("{}:{}", self.config.addr, self.config.public_port);
 
-    let client_listener = TcpListener::bind(client_addr.clone()).await.expect("failed to bind");
-    let public_listener = TcpListener::bind(public_addr.clone()).await.expect("failed to bind");
+    let client_listener = TcpListener::bind(client_addr.clone()).await.with_context(|| format!("Failed to bind to client port: {}", client_addr))?;
+    let public_listener = TcpListener::bind(public_addr.clone()).await.with_context(|| format!("Failed to bind to public port: {}", public_addr))?;
     info!("Listening on {}", client_addr);
     info!("Listening on {}", public_addr);
 
@@ -103,6 +103,7 @@ impl Server{
     });
 
     let _ = tokio::join!(client_task, public_task);
+    Ok(())
   }
 
 }

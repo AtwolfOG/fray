@@ -2,3 +2,7 @@
 resolver = "3"
 members = ["fray-client", "fray-server", "protocol"]
 exclude = ["fray-server/db/server-migration", "fray-client/db/client-migration"]
+
+
+[workspace.dependencies]
+dotenvy = "0.15"

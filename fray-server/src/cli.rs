@@ -10,14 +10,14 @@ pub struct Cli{
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
-  Run(Config),
-  Create(CreateClient),
+  Run(RunArgs),
+  Create(CreateArgs),
   List,
-  Delete(DeleteClient),
+  Delete(DeleteArgs),
 }
 
 #[derive(Parser, Debug, Clone)]
-pub struct CreateClient {
+pub struct CreateArgs {
   /// Name that can be used to identify the client
   pub name: String,
   /// Optional Hostname, that will be used as the subdomain to access your tunnel
@@ -26,7 +26,7 @@ pub struct CreateClient {
 }
 
 #[derive(Parser, Debug, Clone)]
-pub struct Config {
+pub struct RunArgs {
   #[arg( default_value = "0.0.0.0")]
   pub addr: String,
   #[arg(short, long, default_value = "8000")]
@@ -35,12 +35,14 @@ pub struct Config {
   pub public_port: String,
   #[arg(short, long, default_value = "8002")]
   pub admin_port: String,
+  #[arg(long, env = "REDIS_URL", default_value = "redis://localhost:6379")]
+  pub redis_url: String,
 }
 
 
 
 #[derive(Parser, Debug, Clone)]
-pub struct DeleteClient {
+pub struct DeleteArgs {
   pub id: i64,
 }
 
