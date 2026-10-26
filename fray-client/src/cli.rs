@@ -58,13 +58,18 @@ impl From<AuthConfig> for AppConfig {
 }
 
 
-fn config_path() -> Option<PathBuf> {
+fn config_file_dir() -> Option<ProjectDirs> {
   let dirs = ProjectDirs::from("xyz", "atwolf", "fray")?;
+  Some(dirs)
+}
+
+fn config_file_path() -> Option<PathBuf> {
+  let dirs = config_file_dir()?;
   Some(dirs.config_dir().join("config.toml"))
 }
 
 fn load_app_config() -> Option<AppConfig> {
-  let config_path = config_path()?;
+  let config_path = config_file_path()?;
   if !config_path.exists() {
     return None;
   }
@@ -96,10 +101,11 @@ fn get_key_from_config() -> String {
 
 pub fn save_app_config(config: AppConfig) -> Result<()>{
   let contents = toml::to_string_pretty(&config)?;
-  let config_path = config_path().ok_or_else(|| io::Error::other("Can not determine config directory"))?;
-  fs::create_dir_all(config_path.clone())?;
-
-  fs::write(config_path, contents).with_context(|| "failed to write config into file")
+  let config_dir = config_file_dir().ok_or_else(|| io::Error::other("Can not determine config directory"))?;
+  fs::create_dir_all(config_dir.config_dir())?;
+  let config_path = config_file_path().ok_or_else(|| io::Error::other("Can not determine config file path"))?;
+  fs::write(config_path, contents)?;
+  Ok(())
 }
 
 impl Cli {
