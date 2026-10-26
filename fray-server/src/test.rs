@@ -15,8 +15,7 @@ pub async fn setup_and_seed_db() -> DatabaseConnection {
   let now = chrono::Utc::now().into();
   let client = entity::client::ActiveModel {
     name: Set("test_client".to_string()),
-    client_secret: Set("test_secret".to_string()),
-    host: Set("fray".to_string()),
+    key: Set("test_secret".to_string()),
     created_at: Set(now),
     updated_at: Set(now),
     ..Default::default()

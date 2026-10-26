@@ -8,9 +8,9 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    pub client_secret: String,
+    #[sea_orm(unique, renamed_from = "client_secret")]
+    pub key: String,
     #[sea_orm(unique)]
-    pub host: String,
     pub name: String,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,

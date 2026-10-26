@@ -219,11 +219,11 @@ impl ServerState {
   }
 
   /// auth client using id and client secret
-  pub async fn auth_client(&self, id: i64, client_secret: &str) -> Result<crate::entity::client::Model, ServerErr> {
+  pub async fn auth_client(&self, id: i64, key: &str) -> Result<crate::entity::client::Model, ServerErr> {
     let client = crate::entity::client::Entity::find_by_id(id).one(&self.db).await.map_err(|_| ServerErr::FailedToGenerateId)?;
     match client {
       Some(client) => {
-        if client.client_secret == client_secret {
+        if client.key == key {
           Ok(client)
         } else {
           Err(ServerErr::FailedToGetClient)

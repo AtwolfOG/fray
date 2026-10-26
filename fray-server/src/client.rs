@@ -5,7 +5,7 @@ use tokio::{net::TcpStream, sync::mpsc::{Receiver, Sender}, time::Instant};
 use anyhow::{Context, Result, bail};
 use tokio::io::{BufReader, split};
 use tracing::info;
-use crate::{server::ServerState};
+use crate::{server::ServerState, utils::generate_host};
 use protocol::codec::{FrameReader, FrameWriter};
 
 pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Result<()>{
@@ -40,7 +40,7 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
   frame_writer.write_frame(&auth_ok_frame).await.with_context(|| format!("Unable to write auth ok frame for client id: {client_id}"))?;
 
   // get host
-  let host = client.host;
+  let host = generate_host();
 
   // register tunnel
   let register_tunnel_frame = frame_reader.read_frame().await?;
