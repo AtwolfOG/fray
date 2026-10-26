@@ -2,6 +2,7 @@ mod cli;
 mod client;
 mod request;
 mod db;
+mod entity;
 
 
 use client::Client;

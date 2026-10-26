@@ -3,6 +3,8 @@ use std::time::Duration;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use client_migration::MigratorTrait;
 
+use crate::entity::api_logs;
+
 /// Connects to the database
 async fn connect() -> Result<DatabaseConnection, DbErr> {
   let mut opt = ConnectOptions::new("sqlite://fray-client.db?mode=rwc");
@@ -18,12 +20,15 @@ async fn connect() -> Result<DatabaseConnection, DbErr> {
 }
 
 /// Runs the database migrations
-async fn run_migration(db: &DatabaseConnection, steps: Option<u32>) -> Result<(), DbErr> {
-  client_migration::Migrator::up(db, steps).await
+async fn run_migration(db: &DatabaseConnection) -> Result<(), DbErr> {
+  db.get_schema_builder()
+    .register(api_logs::Entity)
+    .sync(db)
+    .await
 }
 
 pub async fn setup_database() -> Result<DatabaseConnection, DbErr> {
   let db = connect().await?;
-  run_migration(&db, None).await?;
+  run_migration(&db).await?;
   Ok(db)
 }
