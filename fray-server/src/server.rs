@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicU32, Ordering}}};
 
 use anyhow::{Context, Result};
+use redis::aio::MultiplexedConnection;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use thiserror::Error;
 use crate::{cli::RunArgs, client::handle_client, public::handle_public};
@@ -15,6 +16,7 @@ pub struct ServerState{
   host_to_client_id: Arc<Mutex<HashMap<String, i64>>>,
   next_session_id: Arc<AtomicU32>,
   pub db: DatabaseConnection,
+  redis_client: MultiplexedConnection,
 }
 pub struct Server{
   pub config: RunArgs,
@@ -40,10 +42,10 @@ pub enum ServerErr {
   // FailedToSaveResp,
 }
 impl Server{
-  pub fn new(config: RunArgs, db: DatabaseConnection) -> Self {
+  pub fn new(config: RunArgs, db: DatabaseConnection, redis_client: MultiplexedConnection) -> Self {
     Self {
       config,
-      state: ServerState::build(db),
+      state: ServerState::build(db, redis_client),
     }
   }
 
@@ -110,13 +112,14 @@ impl Server{
 
 impl ServerState {
 
-  pub fn build(db: DatabaseConnection) -> Self{
+  pub fn build(db: DatabaseConnection, redis_client: MultiplexedConnection) -> Self{
    Self {
       senders: Arc::new(Mutex::new(HashMap::new())),
       client_frame_writers: Arc::new(Mutex::new(HashMap::new())),
       host_to_client_id: Arc::new(Mutex::new(HashMap::new())),
       next_session_id: Arc::new(AtomicU32::new(1)),
       db,
+      redis_client,
     }
   }
   /// add public sender using session_id

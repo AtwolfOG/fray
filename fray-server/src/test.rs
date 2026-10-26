@@ -8,7 +8,8 @@ use tokio::net::{TcpListener, TcpStream};
 
 use crate::public::handle_public;
 use crate::server::ServerState;
-use crate::{db, entity};
+use redis::AsyncCommands;
+use crate::{db, entity, redis::connect};
 
 pub async fn setup_and_seed_db() -> DatabaseConnection {
   let db = db::setup_database(Some("sqlite::memory:?cache=shared")).await.expect("Failed to connect to database");
@@ -35,7 +36,12 @@ async fn test_handle_public_request_bytes_not_duplicated() {
     .expect("Failed to query client")
     .expect("Client with host 'fray' not found");
 
-  let server_state = ServerState::build(db);
+  let mut redis_client = connect(Some("redis://localhost:6379".to_string())).await.expect("Failed to connect to redis");
+  // test redis
+  let _: Result<(), redis::RedisError> = redis_client.set("test", "test").await;
+  let value: String = redis_client.get("test").await.expect("Failed to get key from redis");
+  assert_eq!(value, "test");
+  let server_state = ServerState::build(db, redis_client);
 
   // Set up mock client tunnel
   let tunnel_listener = TcpListener::bind("127.0.0.1:0").await.expect("bind tunnel listener");
@@ -135,7 +141,13 @@ async fn test_handle_public_chunked_request_bytes_not_duplicated() {
     .expect("Failed to query client")
     .expect("Client with host 'fray' not found");
 
-  let server_state = ServerState::build(db);
+  let mut redis_client = connect(Some("redis://localhost:6379".to_string())).await.expect("Failed to connect to redis");
+  // test redis
+  let _: Result<(), redis::RedisError> = redis_client.set("test", "test").await;
+  let value: String = redis_client.get("test").await.expect("Failed to get key from redis");
+  assert_eq!(value, "test");
+  let server_state = ServerState::build(db, redis_client);
+
 
   // Set up mock client tunnel
   let tunnel_listener = TcpListener::bind("127.0.0.1:0").await.expect("bind tunnel listener");

@@ -4,6 +4,9 @@ use anyhow::{Context, Result, bail};
 use rand::{RngExt, distr::Alphanumeric, seq::IndexedRandom};
 use tokio::io::{ AsyncBufReadExt, AsyncRead, BufReader};
 
+const REDIS_URL: &str = "redis://localhost:6379";
+const DB_URL: &str = "sqlite://fray-server.db?mode=rwc";
+
 pub async fn get_headers<T: AsyncRead + Unpin>(reader: &mut BufReader<T>) -> Result<(HashMap<String, String>, Vec<u8>)> {
   let mut buffer = Vec::new();
   loop {

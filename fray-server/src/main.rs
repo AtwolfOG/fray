@@ -7,6 +7,7 @@ mod db;
 mod entity;
 mod commands;
 mod test;
+mod redis;
 
 use tracing::info;
 
