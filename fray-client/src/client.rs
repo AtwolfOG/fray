@@ -11,7 +11,7 @@ use tokio::{io::split};
 use tokio::sync::mpsc::{channel, Sender};
 use tracing::{error, info};
 
-use crate::cli::Config;
+use crate::cli::RunArgs;
 use crate::request::handle_request;
 
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ pub struct ClientState {
 
 pub struct Client {
   state: ClientState,
-  config: Config,
+  config: RunArgs,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -36,7 +36,7 @@ pub enum ClientErr {
 }
 
 impl Client {
-  pub fn new(config: Config) -> Self {
+  pub fn new(config: RunArgs) -> Self {
     Self {
       state: ClientState {
         senders: Arc::new(Mutex::new(HashMap::new())),

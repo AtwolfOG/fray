@@ -1,12 +1,13 @@
 use std::{fs, io, path::PathBuf};
 
-use anyhow::{Context, Ok, Result, bail};
+use anyhow::{bail, Ok, Result};
 use clap::{Parser, Subcommand};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
 
 #[derive(Parser, Debug, Clone)]
+#[command(author, version, about, long_about = None)]
 pub struct Cli {
   #[command(subcommand)]
   pub cmd: Commands,
@@ -15,11 +16,12 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
-  Run(Config),
-  Auth(AuthConfig)
+  Run(RunArgs),
+  Auth(AuthArgs),
 }
+
 #[derive(Parser, Debug, Clone)]
-pub struct Config {
+pub struct RunArgs {
   #[arg(short, long, default_value = "3000")]
   pub local_port: String,
   #[arg(short, long, default_value = "3001")]
@@ -33,26 +35,24 @@ pub struct Config {
 }
 
 #[derive(Parser, Debug, Clone)]
-pub struct AuthConfig {
-
+pub struct AuthArgs {
   #[arg(short, long, env)]
   pub key: String,
   #[arg(short, long, env)]
   pub remote_url: String,
   #[arg(short, long, env)]
-  pub id: i64
+  pub id: i64,
 }
-
 
 #[derive(Deserialize, Serialize, Default)]
 pub struct AppConfig {
-  remote_url: String,
-  key: String,
-  id: i64,
+  pub remote_url: String,
+  pub key: String,
+  pub id: i64,
 }
 
-impl From<AuthConfig> for AppConfig {
-  fn from(conf: AuthConfig) -> Self {
+impl From<AuthArgs> for AppConfig {
+  fn from(conf: AuthArgs) -> Self {
     AppConfig { remote_url: conf.remote_url, key: conf.key, id: conf.id }
   }
 }
@@ -111,7 +111,7 @@ pub fn save_app_config(config: AppConfig) -> Result<()>{
 impl Cli {
   pub fn parse() -> Result<Self>{
     let cli = <Self as Parser>::parse();
-    if let Commands::Run(config) = cli.clone().cmd {
+    if let Commands::Run(ref config) = cli.cmd {
       if config.remote_addr.is_empty() {
         bail!("remote url is empty")
       }

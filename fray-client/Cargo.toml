@@ -15,4 +15,5 @@ sea-orm = { workspace = true, features = [ "sqlx-sqlite", "runtime-tokio-rustls"
 directories = "6.0.0"
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.8"
+dotenvy = { workspace = true }
 

@@ -836,6 +836,7 @@ dependencies = [
  "anyhow",
  "clap",
  "directories",
+ "dotenvy",
  "protocol",
  "sea-orm",
  "serde",
