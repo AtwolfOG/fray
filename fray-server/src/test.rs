@@ -28,11 +28,11 @@ pub async fn setup_and_seed_db() -> DatabaseConnection {
 async fn test_handle_public_request_bytes_not_duplicated() {
   let db = setup_and_seed_db().await;
   let client = entity::client::Entity::find()
-    .filter(entity::client::Column::Host.eq("fray"))
+    .filter(entity::client::Column::Key.eq("test_secret"))
     .one(&db)
     .await
     .expect("Failed to query client")
-    .expect("Client with host 'fray' not found");
+    .expect("Client with key 'test_secret' not found");
 
   let server_state = ServerState::build(db);
 
@@ -128,11 +128,11 @@ async fn test_handle_public_request_bytes_not_duplicated() {
 async fn test_handle_public_chunked_request_bytes_not_duplicated() {
   let db = setup_and_seed_db().await;
   let client = entity::client::Entity::find()
-    .filter(entity::client::Column::Host.eq("fray"))
+    .filter(entity::client::Column::Key.eq("test_secret"))
     .one(&db)
     .await
     .expect("Failed to query client")
-    .expect("Client with host 'fray' not found");
+    .expect("Client with key 'test_secret' not found");
 
   let server_state = ServerState::build(db);
 

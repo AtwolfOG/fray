@@ -21,20 +21,21 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
   // authenticate client
   info!("authenticating client");
   let auth_frame = frame_reader.read_frame().await?;
-  let Message::Auth {id: client_id, key} = Message::from_frame(auth_frame)? else {
+  let Message::Auth {id, key} = Message::from_frame(auth_frame)? else {
     // auth failed
     // write authErr to client
     frame_writer.write_frame(&Message::AuthErr { reason: "authentication error".to_owned() }.into_frame(0)).await.with_context(|| "Unable to write error frame after auth failure")?;
     bail!("Invalid auth message")
   };
 
-  let Ok(client) = server_state.auth_client(client_id, &key).await else {
+  let Ok(client) = server_state.get_client_with_key(&key).await else {
     // auth failed
     // write authErr to client
-    frame_writer.write_frame(&Message::AuthErr { reason: "authentication error".to_owned() }.into_frame(0)).await.with_context(|| format!("Unable to write error frame after auth failure for client id: {client_id}"))?;
+    frame_writer.write_frame(&Message::AuthErr { reason: "authentication error".to_owned() }.into_frame(0)).await.with_context(|| format!("Unable to write error frame after auth failure"))?;
     bail!("Invalid client credentials")
   };
 
+  let client_id = client.id;
   info!("authenticated client: {}, id: {}", client.name, client.id);
   let auth_ok_frame = Message::AuthOK.into_frame(0);
   frame_writer.write_frame(&auth_ok_frame).await.with_context(|| format!("Unable to write auth ok frame for client id: {client_id}"))?;

@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
-use client_migration::MigratorTrait;
 
 use crate::entity::api_logs;
 

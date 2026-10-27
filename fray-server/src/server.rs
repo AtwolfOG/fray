@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicU32, Ordering}}};
 
 use anyhow::{Context, Result};
-use sea_orm::{DatabaseConnection, EntityTrait};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
 use thiserror::Error;
 use crate::{cli::RunArgs, client::handle_client, public::handle_public};
 use protocol::{codec::FrameWriter, message::Message};
@@ -218,17 +218,11 @@ impl ServerState {
     Ok(id)
   }
 
-  /// auth client using id and client secret
-  pub async fn auth_client(&self, id: i64, key: &str) -> Result<crate::entity::client::Model, ServerErr> {
-    let client = crate::entity::client::Entity::find_by_id(id).one(&self.db).await.map_err(|_| ServerErr::FailedToGenerateId)?;
+  /// get client using key
+  pub async fn get_client_with_key(&self, key: &str) -> Result<crate::entity::client::Model, ServerErr> {
+    let client = crate::entity::client::Entity::find().filter(crate::entity::client::Column::Key.eq(key)).one(&self.db).await.map_err(|_| ServerErr::FailedToGetClient)?;
     match client {
-      Some(client) => {
-        if client.key == key {
-          Ok(client)
-        } else {
-          Err(ServerErr::FailedToGetClient)
-        }
-      }
+      Some(client) => Ok(client),
       None => Err(ServerErr::FailedToGetClient),
     }
   }
