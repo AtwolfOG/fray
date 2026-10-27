@@ -57,7 +57,7 @@ impl Client {
 
     // send auth
     info!("sending auth request");
-    let auth_frame = Message::Auth { id: self.config.id, key: self.config.key.clone() }.into_frame(0);
+    let auth_frame = Message::Auth { key: self.config.key.clone() }.into_frame(0);
     self.state.send_frame_to_writer(auth_frame).await?;
 
     // handle auth response

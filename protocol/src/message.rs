@@ -4,7 +4,7 @@ use crate::{error::ProtocolError, frame::{Frame, FrameType}};
 
 #[derive(Debug)]
 pub enum Message {
-  Auth { id: i64, key: String },
+  Auth { key: String },
   // AuthOK { user_id: u32 },
   AuthOK, 
   AuthErr { reason: String },
@@ -25,7 +25,7 @@ pub enum Message {
 impl Message{
   pub fn into_frame(self, id: u32) -> Frame{
     let (kind, payload) = match self {
-      Self::Auth { id, key } => (FrameType::Auth, [id.to_be_bytes().as_slice(), key.as_bytes()].concat()),
+      Self::Auth { key } => (FrameType::Auth, key.into_bytes()),
       Self::AuthOK => (FrameType::AuthOK, vec![]),
       Self::AuthErr { reason } => (FrameType::AuthErr, reason.into_bytes()),
       Self::RegisterTunnel => (FrameType::RegisterTunnel, vec![]),
@@ -45,7 +45,7 @@ impl Message{
   pub fn from_frame(frame: Frame) -> Result<Self, ProtocolError>{
     let mut b = frame.payload;
     Ok(match frame.kind{
-      FrameType::Auth => Self::Auth { id: b.get_i64(), key: String::from_utf8(b.to_vec()).map_err(|_| ProtocolError::MalformedPayload)? },
+      FrameType::Auth => Self::Auth { key: String::from_utf8(b.to_vec()).map_err(|_| ProtocolError::MalformedPayload)? },
       FrameType::AuthOK => Self::AuthOK,
       FrameType::AuthErr => Self::AuthErr { reason: String::from_utf8(b.to_vec()).map_err(|_| ProtocolError::MalformedPayload)? },
       FrameType::RegisterTunnel => Self::RegisterTunnel,
