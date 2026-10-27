@@ -77,15 +77,16 @@ impl Client {
 
     // register tunnel
     info!("registering tunnel");
-    let register_tunnel_frame = Message::RegisterTunnel.into_frame(0);
+    todo!("use the config to register the tunnel");
+    let register_tunnel_frame = Message::RegisterTunnel { host: None }.into_frame(0);
     self.state.send_frame_to_writer(register_tunnel_frame).await?;
 
     // handle tunnel registered response
     info!("waiting for tunnel registered response");
     let tunnel_registered_frame = reader.read_frame().await.with_context(|| "Failed to read tunnel registered response")?;
     match Message::from_frame(tunnel_registered_frame) {
-      Ok(Message::TunnelRegistered) => {
-        info!("Tunnel registered successfully");
+      Ok(Message::TunnelRegistered { host }) => {
+        info!("Tunnel registered successfully, ")
       }
       Ok(Message::TunnelErr { reason }) => {
         return Err(anyhow::anyhow!("Tunnel registration failed: {}", reason));

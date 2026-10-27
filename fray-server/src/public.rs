@@ -41,7 +41,7 @@ pub async fn handle_public(stream: TcpStream, tx: Sender<Vec<u8>>, mut rx: Recei
   let start = std::time::Instant::now();
 
   let msg = Message::OpenStream { stream_id: session_id };
-  server_state.write_message_to_tunnel(&host, session_id, msg).await.with_context(|| format!("failed to open stream on client: {}", client_id))?;
+  server_state.write_message_to_tunnel(client_id, session_id, msg).await.with_context(|| format!("failed to open stream on client: {}", client_id))?;
 
   loop {
     tokio::select! {
@@ -57,7 +57,7 @@ pub async fn handle_public(stream: TcpStream, tx: Sender<Vec<u8>>, mut rx: Recei
         let data = buf[..n].to_vec();
         request_payload.extend_from_slice(&buf[..n]);
         let msg = Message::Data(data.into());
-        server_state.write_message_to_tunnel(&host, session_id, msg).await?;
+        server_state.write_message_to_tunnel(client_id, session_id, msg).await?;
       }
       
       data = rx.recv() => {

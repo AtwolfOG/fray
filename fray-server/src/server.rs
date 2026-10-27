@@ -11,7 +11,7 @@ use tracing::info;
 #[derive(Debug, Clone)]
 pub struct ServerState{
   senders: Arc<Mutex<HashMap<u32, Sender<Vec<u8>>>>>,
-  client_frame_writers: Arc<Mutex<HashMap<String, FrameWriter<WriteHalf<TcpStream>>>>>,
+  client_frame_writers: Arc<Mutex<HashMap<i64, FrameWriter<WriteHalf<TcpStream>>>>>,
   host_to_client_id: Arc<Mutex<HashMap<String, i64>>>,
   next_session_id: Arc<AtomicU32>,
   pub db: DatabaseConnection,
@@ -121,11 +121,11 @@ impl ServerState {
   }
   /// add public sender using session_id
   pub async fn add_sender(&self, session_id: u32, sender: Sender<Vec<u8>>) -> Result<(), ServerErr>{
-    let mut idk = self.senders.lock().await;
-    if idk.contains_key(&session_id){
+    let mut tmp = self.senders.lock().await;
+    if tmp.contains_key(&session_id){
       return Err(ServerErr::ClientAlreadyExists)
     }
-    idk.insert(session_id, sender);
+    tmp.insert(session_id, sender);
     Ok(())
   }
 
@@ -140,29 +140,29 @@ impl ServerState {
 
   /// remove sender using session_id
   pub async fn remove_sender(&self, session_id: u32) -> Result<(), ServerErr>{
-    let mut idk = self.senders.lock().await;
-    idk.remove(&session_id);
+    let mut tmp = self.senders.lock().await;
+    tmp.remove(&session_id);
     Ok(())
   }
   
   /// add tunnel frame writer using host
-  async fn add_tunnel_frame_writer(&self, host: String, frame_writer: FrameWriter<WriteHalf<TcpStream>>) {
-    let mut idk = self.client_frame_writers.lock().await;
+  async fn add_tunnel_frame_writer(&self, client_id: i64, frame_writer: FrameWriter<WriteHalf<TcpStream>>) {
+    let mut tmp = self.client_frame_writers.lock().await;
     // todo: handle reconnection better instead of just overriding
     // override if the client reconnects
-    idk.insert(host, frame_writer);
+    tmp.insert(client_id, frame_writer);
   }
   
   /// remove tunnel frame writer using host
-  async fn remove_tunnel_frame_writer(&self, host: &String){
-    let mut idk = self.client_frame_writers.lock().await;
-    idk.remove(host);
+  async fn remove_tunnel_frame_writer(&self, client_id: i64){
+    let mut tmp = self.client_frame_writers.lock().await;
+    tmp.remove(&client_id);
   }
 
   /// write message to tunnel using host and request id
-  pub async fn write_message_to_tunnel(&self, host: &String, req_id: u32, msg: Message) -> Result<(), ServerErr>{
+  pub async fn write_message_to_tunnel(&self, client_id: i64, req_id: u32, msg: Message) -> Result<(), ServerErr>{
     let mut fw = self.client_frame_writers.lock().await;
-    match fw.get_mut(host) {
+    match fw.get_mut(&client_id) {
       Some(fw) => fw.write_frame(&msg.into_frame(req_id)).await.map_err(|_| ServerErr::FailedToSend),
       None => Err(ServerErr::ChannelNotFound),
     }
@@ -170,35 +170,36 @@ impl ServerState {
 
   /// get client id from host
   pub async fn get_client_id_from_host(&self, host: String) -> Result<i64, ServerErr> {
-    let idk = self.host_to_client_id.lock().await;
-    match idk.get(&host) {
+    let tmp = self.host_to_client_id.lock().await;
+    match tmp.get(&host) {
       Some(id) => Ok(*id),
       None => Err(ServerErr::ChannelNotFound),
     }
   }
 
   /// remove host from client id map
-  async fn remove_host_from_client_id_map(&self, host: &String) {
-    let mut idk = self.host_to_client_id.lock().await;
-    idk.remove(host);
+  async fn remove_host_from_client_id_map(&self, host: &String) -> Option<i64> {
+    let mut tmp = self.host_to_client_id.lock().await;
+    tmp.remove(host)
   }
 
   /// add host to client id map
   async fn add_host_to_client_id(&self, host: String, client_id: i64) {
-    let mut idk = self.host_to_client_id.lock().await;
-    idk.insert(host, client_id);
+    let mut tmp = self.host_to_client_id.lock().await;
+    tmp.insert(host, client_id);
   }
 
   /// this remove stream writers from tunnel_writers, and remove host from host_to_client_id map
   pub async fn remove_client(&self, host: &String) {
-    self.remove_tunnel_frame_writer(host).await;
-    self.remove_host_from_client_id_map(host).await;
+    if let Some(client_id) = self.remove_host_from_client_id_map(host).await {
+      self.remove_tunnel_frame_writer(client_id).await;
+    }
   }
 
   /// this add tunnel frame writer to tunnel_writers, and add host to host_to_client_id map
   pub async fn add_client(&self, host: String, frame_writer: FrameWriter<WriteHalf<TcpStream>>, client_id: i64) {
-    self.add_tunnel_frame_writer(host.clone(), frame_writer).await;
     self.add_host_to_client_id(host, client_id).await;
+    self.add_tunnel_frame_writer(client_id, frame_writer).await;
   }
 
   /// get next public id

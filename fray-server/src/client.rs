@@ -40,23 +40,23 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
   let auth_ok_frame = Message::AuthOK.into_frame(0);
   frame_writer.write_frame(&auth_ok_frame).await.with_context(|| format!("Unable to write auth ok frame for client id: {client_id}"))?;
 
-  // get host
-  let host = generate_host();
-
   // register tunnel
   let register_tunnel_frame = frame_reader.read_frame().await?;
-  let Message::RegisterTunnel = Message::from_frame(register_tunnel_frame)? else {
+  let Message::RegisterTunnel { host } = Message::from_frame(register_tunnel_frame)? else {
     // invalid register tunnel frame
     // write tunnelErr to client
     frame_writer.write_frame(&Message::TunnelErr { reason: "invalid register tunnel frame".to_owned() }.into_frame(0)).await.with_context(|| format!("Unable to write error frame after register tunnel failure for client id: {client_id}"))?;
     bail!("Invalid register tunnel message")
   };
 
+  // get host
+  let host = host.unwrap_or_else(generate_host);
+
   // save frame_writer to server_state
   server_state.add_client(host.clone(), frame_writer, client_id).await;
 
   // write tunnel registered to client
-  server_state.write_message_to_tunnel(&host, 0, Message::TunnelRegistered).await.with_context(|| format!("Unable to write tunnel registered frame for client id: {client_id}"))?;
+  server_state.write_message_to_tunnel(client_id, 0, Message::TunnelRegistered { host: host.clone() }).await.with_context(|| format!("Unable to write tunnel registered frame for client id: {client_id}"))?;
 
   let (tx, rx) = tokio::sync::mpsc::channel::<()>(1);
 
@@ -88,7 +88,7 @@ pub async fn handle_client(stream: TcpStream, server_state: ServerState) -> Resu
         server_state.remove_sender(session_id).await?;
 
         // write stream closed to client
-        let _ = server_state.write_message_to_tunnel(&host, session_id, Message::StreamClosed { stream_id: session_id }).await;
+        let _ = server_state.write_message_to_tunnel(client_id, session_id, Message::StreamClosed { stream_id: session_id }).await;
       }
       FrameType::Pong => {
         // handle pong
@@ -131,9 +131,10 @@ async fn close_client_with_timeout(mut rx: Receiver<()>, server_state: ServerSta
 
 async fn ping_client(server_state: ServerState, host: String) -> Result<()> { 
   let mut interval = tokio::time::interval(Duration::from_secs(45));
+  let client_id = server_state.get_client_id_from_host(host).await?;
   loop {
     interval.tick().await;
     let ping_msg = Message::Ping;
-    server_state.write_message_to_tunnel(&host, 0, ping_msg).await.with_context(|| "Unable to write ping frame to client")?;
+    server_state.write_message_to_tunnel(client_id, 0, ping_msg).await.with_context(|| "Unable to write ping frame to client")?;
   }
 }
