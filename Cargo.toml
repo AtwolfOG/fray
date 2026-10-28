@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["fray-client", "fray-server", "protocol"]
+members = ["fray-client", "fray-core", "fray-server", "protocol"]
 
 
 [workspace.dependencies]
