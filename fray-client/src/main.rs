@@ -4,6 +4,7 @@ mod request;
 mod db;
 mod entity;
 mod commands;
+mod config;
 
 use tracing::info;
 
